@@ -32,14 +32,13 @@ const float V_REF = 3.3;
 const float ADC_RES_BITS = 10.0;
 
 // NeoPixel LED Strip Constants
-#define NUM_LEDS 32;
-#define LED_STRIP_PIN D0;
+#define LED_COUNT 5;
+#define LED_STRIP_PIN 7; // digital pin 7
+uint32_t magent = strip.Color(200, 0, 200);
 
 enum {
   SKATE_STATIONARY = 0,
   SKATE_MOVING,
-  
-
 } SkateState_t;
 
 typedef struct {
@@ -60,19 +59,63 @@ typedef struct {
 // Global variables for IMU
 Adafruit_BNO08x_RVC rvc = Adafruit_BNO08x_RVC();
 // Global variables for NeoPixel LEDs
-Adafruit_NeoPixel strip = Adafruit_NeoPixel(N_LEDS, LED_PIN, NEO_GRB + NEO_KHZ800);
+Adafruit_NeoPixel strip = Adafruit_NeoPixel(LED_COUNT, LED_STRIP_PIN, NEO_GRB + NEO_KHZ800);
+// Argument 1 = Number of pixels in NeoPixel strip
+// Argument 2 = Arduino pin number (most are valid)
+// Argument 3 = Pixel type flags, add together as needed:
+//   NEO_KHZ800  800 KHz bitstream (most NeoPixel products w/WS2812 LEDs)
+//   NEO_KHZ400  400 KHz (classic 'v1' (not v2) FLORA pixels, WS2811 drivers)
+//   NEO_GRB     Pixels are wired for GRB bitstream (most NeoPixel products)
+//   NEO_RGB     Pixels are wired for RGB bitstream (v1 FLORA pixels, not v2)
+//   NEO_RGBW    Pixels are wired for RGBW bitstream (NeoPixel RGBW products)
 StateData_t state;
 CmdData_t cmd;
+unsigned long time;
+int loopDeltaMs = 500; // 500ms = 0.5s
+bool ledsState = false;
 
 void setup() {
   // put your setup code here, to run once:
+  initializeLedStrips();
+  time = millis();
 
 }
 
 void loop() {
-  readSensors();
-  computeSkateStateFromSensorData();
-  sendCommands();
+  // readSensors();
+  // computeSkateStateFromSensorData();
+  // sendCommands();
+  unsigned long dt = millis() - time;
+  if (dt >= loopDeltaMs) {
+    toggleLeds();
+    time = millis();
+  }
+}
+
+void initializeLedStrips() {
+  // prepare data pin for NeoPixel strip
+  strip.begin();
+  // initalize all pixels to 'off', since no colors set yet
+  strip.show();
+  ledsState = false;
+}
+
+void toggleLeds() {
+  if (ledsState) {
+    turnOfLeds();
+  } else {
+    turnOnLeds();
+  }
+}
+
+void turnOnLeds() {
+  strip.fill(magenta, 0);
+  strip.show();
+}
+
+void turnOffLeds() {
+  strip.clear();
+  strip.show();
 }
 
 void readSensors() {

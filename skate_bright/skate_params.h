@@ -1,0 +1,16 @@
+#ifndef SKATE_PARAMS_H
+#define SKATE_PARAMS_H
+
+#define SERIAL_BAUD_RATE    115200
+#define REAR_LEDS_COUNT     1
+#define INSIDE_LEDS_COUNT   1
+#define FRONT_LEDS_COUNT    1
+#define OUTSIDE_LEDS_COUNT  1
+#define SKATE_LED_COUNT (REAR_LEDS_COUNT + INSIDE_LEDS_COUNT + FRONT_LEDS_COUNT + OUTSIDE_LEDS_COUNT)
+#define LED_STRIP_PIN       6
+#define HEEL_BRAKE_ON       true
+
+constexpr uint32_t LOOP_RATE_HZ  = 100;
+constexpr uint32_t LOOP_DELAY_MS = 1000 / LOOP_RATE_HZ;
+
+#endif

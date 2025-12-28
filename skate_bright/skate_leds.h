@@ -16,8 +16,8 @@ public:
   //   NEO_RGB     Pixels are wired for RGB bitstream (v1 FLORA pixels, not v2)
   //   NEO_RGBW    Pixels are wired for RGBW bitstream (NeoPixel RGBW products)
   Adafruit_NeoPixel strip{SKATE_LED_COUNT, LED_STRIP_PIN, NEO_GRB + NEO_KHZ800};
-  bool leds_on[SKATE_LED_COUNT] = { false };
-  bool leds_state = false;
+  bool ledsOn[SKATE_LED_COUNT] = { false };
+  bool ledsState = false;
   uint32_t magenta = strip.Color(255, 0, 255);
 
   void initialize();

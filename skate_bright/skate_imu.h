@@ -11,15 +11,21 @@ class SkateImu {
 public:
   Adafruit_BNO08x imu = Adafruit_BNO08x();
   // Buffer to receive sensor events
-  sh2_SensorValue_t sensor_value;
-  // Report type we want to enable
-  static const sh2_SensorId_t report_type = SH2_ARVR_STABILIZED_RV;
-
-  // static const uint32_t report_interval_us = 10000; // 100 Hz (start here)
+  sh2_SensorValue_t sensorValue;
+  // Report type we want to enable (stabilized rotation vector)
+  static const sh2_SensorId_t reportType = SH2_ARVR_STABILIZED_RV;
 
   bool enableReports();
 
   void initialize();
+
+  void initI2c();
+
+  void initUart();
+
+  void reset();
+
+  void setZero();
 
   bool readImu();
 

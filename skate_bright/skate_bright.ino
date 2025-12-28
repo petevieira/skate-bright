@@ -23,23 +23,22 @@
 #include "skate_pressure.h"
 #include "skate_leds.h"
 
-constexpr uint32_t PERIOD_US = 10000; // 100 Hz
 uint32_t nextTickUs;
 
 class SkateState {
-  double roll_deg;
-  double pitch_deg;
-  double yaw_deg;
-  double forward_vel_m_s;
-  double forward_acc_m_s_s;
-  double down_pressure_n;
+  double rollDeg;
+  double pitchDeg;
+  double yawDeg;
+  double forwardVelM;
+  double forwardAccM;
+  double downPressureN;
 };
 
 // sensors
-SkateImu skate_imu = SkateImu();
-SkatePressure skate_pressure = SkatePressure();
+SkateImu skateImu = SkateImu();
+SkatePressure skatePressure = SkatePressure();
 // signals
-SkateLeds skate_leds = SkateLeds();
+SkateLeds skateLeds = SkateLeds();
 
 void setup() {
   initializeSerial();
@@ -51,7 +50,7 @@ void setup() {
 void loop() {
   uint32_t now = micros();
   if ((int32_t)(now - nextTickUs) >= 0) {
-    nextTickUs += PERIOD_US;
+    nextTickUs += LOOP_DELAY_US;
     loopTask();
   }
 }
@@ -63,22 +62,24 @@ void loopTask() {
 }
 
 void initializeSerial() {
-  DEBUG_BEGIN(SERIAL_BAUD_RATE);
-  while (!Serial) { delay(10); }
+  Serial.begin(IMU_UART_BAUD_RATE);
+  while (!Serial) {
+    delay(10);
+  }
   DEBUG_PRINTLN("Serial ready");
 }
 
 void initializeSensors() {
-  skate_imu.initialize();
+  skateImu.initialize();
 }
 
 void initializeSignals() {
-  skate_leds.initialize();
+  skateLeds.initialize();
 }
 
 void readSensors() {
-  skate_imu.process();
-  skate_pressure.process();
+  skateImu.process();
+  skatePressure.process();
 }
 
 void fuseSensorData() {

@@ -16,7 +16,7 @@ void SkateLeds::processLeds() {
 }
 
 void SkateLeds::toggleLeds() {
-  if (leds_state) {
+  if (ledsState) {
     turnOffLeds();
   } else {
     turnOnLeds();
@@ -26,10 +26,10 @@ void SkateLeds::toggleLeds() {
 
 void SkateLeds::turnOnLeds() {
   strip.fill(magenta, 0);
-  leds_state = true;
+  ledsState = true;
 }
 
 void SkateLeds::turnOffLeds() {
   strip.clear();
-  leds_state = false;
+  ledsState = false;
 }

@@ -21,26 +21,21 @@
 #include "skate_params.h"
 #include "skate_imu.h"
 #include "skate_pressure.h"
+#include "skate_sensor_fusion.h"
 #include "skate_leds.h"
 
 uint32_t nextTickUs;
 
-class SkateState {
-  double rollDeg;
-  double pitchDeg;
-  double yawDeg;
-  double forwardVelM;
-  double forwardAccM;
-  double downPressureN;
-};
-
 // sensors
 SkateImu skateImu = SkateImu();
 SkatePressure skatePressure = SkatePressure();
+// state
+SkateSensorFusion sensorFusion = SkateSensorFusion();
 // signals
 SkateLeds skateLeds = SkateLeds();
 
 void setup() {
+  initializeState();
   initializeSerial();
   initializeSensors();
   initializeSignals();
@@ -56,9 +51,16 @@ void loop() {
 }
 
 void loopTask() {
-  readSensors();
-  fuseSensorData();
+  bool newData = readSensors();
+  fuseSensorData(newData);
   sendCommands();
+}
+
+void initializeState() {
+  state.direction = Stopped;
+  state.tilt = Upright;
+  state.contact = Unknown;
+  state.speedMode = Unknown;
 }
 
 void initializeSerial() {
@@ -78,12 +80,15 @@ void initializeSignals() {
 }
 
 void readSensors() {
-  skateImu.process();
-  skatePressure.process();
+  bool newImuData = skateImu.process();
+  bool newPressureData = skatePressure.process();
+  return newImuData || newPresureData;
 }
 
-void fuseSensorData() {
+void fuseSensorData(bool newData) {
+  if (!newData) return;
 
+  skateSensorFusion.update(skateImu, skatePressure);
 }
 
 void sendCommands() {

@@ -1,31 +1,70 @@
-#ifndef SKATE_PRESSURE_H
-#define SKATE_PRESSURE_H
+#ifndef SKATE_SENSOR_FUSION_H
+#define SKATE_SENSOR_FUSION_H
 
-enum RearLedsState {
-  REAR_BRAKING = 0,
-  REAR_SLOWING,
-  REAR_CRUISING,
-  REAR_ACCELERATING,
-  REAR_IN_THE_AIR
-};
+#include <Adafruit_BNO08x.h>
+#include "skate_imu.h"
+#include "skate_pressure.h"
 
-enum FrontLedsState {
-  FRONT_CRUSING = 0,
-  FRONT_IN_THE_AIR
-};
+enum class Direction : uint8_t { Stopped, Forward, Backward };
+enum class Lean: uint8_t { Upright, Left, Right };
+enum class Contact: unit8_t { OnGround, Airborne, Unknown };
+enum class SpeedMode: uint8_t { Constant, Accelerating, Braking, Stopped, Unknown };
 
-enum SideLedsState {
-  SIDE_VERTICAL = 0,
-  SIDE_LEANING_INSIDE,
-  SIDE_LEANING_OUTSIDE,
-  SIDE_HEEL_UP,
-  SIDE_TOE_UP,
-  SIDE_IN_THE_AIR
+enum SkateFlag : uint32_t {
+  FLAG_HEEL_BRAKE           = 1u << 0,
+  FLAG_TOE_ONLY             = 1u << 1,
+  FLAG_HEEL_ONLY            = 1u << 2,
+}
+
+inline bool has(uint32_t flags, SkateFlag f) {
+  return (flags & f) != 0;
+}
+
+class SkateSensors {
+  sh2_Accelerometer_t acceleration; // .x, .y, .z
+  sh2_RotationVector_t orientation; // .i, .j, .k, .real
+  sh2_Gyroscope_t angularVelocity; // .x, .y, .z
+  float pressure;
+}
+
+class SkateState {
+  // continuous estimates (for thresholds/hysteresis/debug)
+  float velocity;    // signed: + forward, - backward (m/s)
+  float acceleration;   // signed along travel axis (m/s^2)
+  float roll;   // left/right
+  float pitch;  // toe/heel
+  float yaw;
+  float contactProb; // 0..1
+
+  // discrete dimensions
+  Direction direction;
+  Lean lean;
+  Contact contact;
+  SpeedMode speedMode;
+
+  // multi-true flags
+  uint32_t flags;
+
+  // bookkeeping
+  uint32_t lastUpdateMs;
 };
 
 class SkateSensorFusion {
+public:
 
-  void fuseSensorData();
+  SkateState skate;
+
+  void update(SkateImu imu, SkatePressure pressure);
+
+private:
+
+  SkateSensors sensors;
+  SkateSensors filteredSensorsPrev;
+  SkateSensors filteredSensors;
+
+  void storeNewSensorData(SkateImu imu, SkatePressure pressure);
+
+  void computeSkateDynamics();
 };
 
-#endif
+#endif // SKATE_SENSOR_FUSION_H

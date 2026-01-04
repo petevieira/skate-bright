@@ -34,6 +34,10 @@ SkateSensorFusion sensorFusion = SkateSensorFusion();
 // signals
 SkateLeds skateLeds = SkateLeds();
 
+/**
+ * Setup function. Run once at startup.
+ * Initializes state, Serial port, sensors, and signals.
+ */
 void setup() {
   initializeState();
   initializeSerial();
@@ -42,6 +46,10 @@ void setup() {
   nextTickUs = micros();
 }
 
+/**
+ * Main update loop. Runs continuously, but data and commands are
+ * processed based on predefined loop rate.
+ */
 void loop() {
   uint32_t now = micros();
   if ((int32_t)(now - nextTickUs) >= 0) {
@@ -50,12 +58,19 @@ void loop() {
   }
 }
 
+/**
+ * Function that gets run every update.
+ * Reads sensors and sends commands.
+ */
 void loopTask() {
-  bool newData = readSensors();
-  fuseSensorData(newData);
+  bool gotNewData = readSensors();
+  fuseSensorData(gotNewData);
   sendCommands();
 }
 
+/**
+ * Initializes state.
+ */
 void initializeState() {
   state.direction = Stopped;
   state.tilt = Upright;
@@ -63,34 +78,43 @@ void initializeState() {
   state.speedMode = Unknown;
 }
 
-void initializeSerial() {
-  Serial.begin(IMU_UART_BAUD_RATE);
-  while (!Serial) {
-    delay(10);
-  }
-  DEBUG_PRINTLN("Serial ready");
-}
-
+/**
+ * Initializes sensors.
+ */
 void initializeSensors() {
   skateImu.initialize();
+  skatePressure.initialize();
 }
 
+/**
+ * Initializes signals, like LED strip.
+ */
 void initializeSignals() {
   skateLeds.initialize();
 }
 
-void readSensors() {
+/**
+ * Reads all sensors.
+ * @returns true if new sensor data acquired, false otherwise.
+ */
+bool readSensors() {
   bool newImuData = skateImu.process();
   bool newPressureData = skatePressure.process();
   return newImuData || newPresureData;
 }
 
-void fuseSensorData(bool newData) {
-  if (!newData) return;
+/**
+ * Processes sensor data if new data exists.
+ */
+void fuseSensorData(bool gotNewData) {
+  if (!gotNewData) return;
 
   skateSensorFusion.update(skateImu, skatePressure);
 }
 
+/**
+ * Sends commands to signals, like LED strip.
+ */
 void sendCommands() {
 
 }

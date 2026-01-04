@@ -65,6 +65,37 @@ private:
   void storeNewSensorData(SkateImu imu, SkatePressure pressure);
 
   void computeSkateDynamics();
+
+  void computeOrientationConjugate(sh2_RotationVector_t q);
+
+  void filterMeasurement(float measurement, float filteredValPrev);
+
+  void filterSensorAcceleration();
+
+  void computeSkateAcceleration();
+
+  void applyDeadband(sh2_Accelerometer_t &a, float deadband);
+  
+  void computeSkateVelocity();
+
+  void computeSkateDirection();
+
+  void computeSkateSpeedMode();
+
+  void computeSkateRpy();
+
+  void computeSkateLean();
+
+  void computeSkatePressure();
+
+  void computeContact();
+
+  void quaternionToRpy(
+    float qx, float qy, float qz, float qw,
+    float *roll, float *pitch, float *yaw
+  );
+
+  inline float radToDeg(float rad) { return rad * 180 / M_PI; }
 };
 
 #endif // SKATE_SENSOR_FUSION_H

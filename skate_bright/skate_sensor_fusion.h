@@ -53,14 +53,13 @@ class SkateSensorFusion {
 public:
 
   SkateState skate;
+  SkateSensors filteredSensorsPrev;
+  SkateSensors filteredSensors;
+  SkateSensors sensors;
 
   void update(SkateImu imu, SkatePressure pressure);
 
 private:
-
-  SkateSensors sensors;
-  SkateSensors filteredSensorsPrev;
-  SkateSensors filteredSensors;
 
   void storeNewSensorData(SkateImu imu, SkatePressure pressure);
 

@@ -2,9 +2,10 @@
 #include "skate_sensor_fusion.h"
 
 void SkateSensorFusion::update(imu, pressure) {
-  filteredSensorsPrev = filteredSensors;
   storeNewSensorData(imu, pressure);
+  filterSensorData();
   computeSkateDynamics();
+  computeSkateBehavior();
 
   return;
 }
@@ -16,86 +17,96 @@ void SkateSensorFusion::storeNewSensorData(imu, pressure) {
   sensors.pressure = pressure.value;
 }
 
+void SkateSensorFusion::filterSensorData() {
+  filteredSensorsPrev = filteredSensors;
+  filterSensorAcceleration();
+  filterSensorPressure();
+  filterSensorOrientation();
+  filterSensorAngularVelocity();
+}
+
 void SkateSensorFusion::computeSkateDynamics() {
   // operate on sensor data
-  filterSensorAcceleration();
   computeSkateAcceleration();
   computeSkateVelocity();
   computeSkateRpy();
   computeSkatePressure();
+}
 
+void SkateSensorFusion::computeSkateBehavior() {
   // compute skate high-level info
   computeSkateLean();
   computeSkateDirection();
   computeSkateSpeedMode();
-
 }
 
 void SkateSensorFusion::computeOrientationConjugate(sh2_RotationVector_t q) {
   return q - q.i - q.j - q.k;
 }
 
-void SkateSensorFusion::filterMeasurement(float measurement, float filteredValPrev) {
+void SkateSensorFusion::filterMeasurement(float measurement, float filteredValPrev, float timeConstant) {
   float dt = LOOP_DELAY_S;
   // time constant for filter
-  float rc = ACCELERATION_FILTER_TIME_CONSTANT;
+  float rc = timeConstant;
   // gain (how fast the value is allowed to change 0..1)
   float alpha = dt / (rc + dt);
 
+  // exponentially weighted moving average (exponential smoothing)
   // y[n] = y[n-1] + α ( x[n] - y[n-1] ) (new value = old value + (fraction) × (error))
   return filteredValPrev + alpha * (measurement - filteredValPrev);
 }
 
 void SkateSensorFusion::filterSensorAcceleration() {
-  float dt = LOOP_DELAY_S;
-  // time constant for filter
-  float rc = ACCELERATION_FILTER_TIME_CONSTANT;
-  // gain (how fast the value is allowed to change 0..1)
-  float alpha = dt / (rc + dt);
+  filteredSensors.acceleration.x = filterMeasurement(sensors.acceleration.x, filteredSensorsPrev.acceleration.x, ACCELERATION_FILTER_TIME_CONSTANT);
+  filteredSensors.acceleration.y = filterMeasurement(sensors.acceleration.y, filteredSensorsPrev.acceleration.y, ACCELERATION_FILTER_TIME_CONSTANT);
+  filteredSensors.acceleration.z = filterMeasurement(sensors.acceleration.z, filteredSensorsPrev.acceleration.z, ACCELERATION_FILTER_TIME_CONSTANT);
+}
 
-  // update previous filtered values
-  filteredSensorsPrev.acceleration.x = filteredSensors.acceleration.x;
-  filteredSensorsPrev.acceleration.y = filteredSensors.acceleration.y;
-  filteredSensorsPrev.acceleration.z = filteredSensors.acceleration.z;
+void SkateSensorFusion::filterSensorPressure() {
+  // exponentially weighted moving average (exponential smoothing)
+  filteredSensors.pressure = filterMeasurement(sensors.pressure, filteredSensorsPrev.pressure, PRESSURE_FILTER_TIME_CONSTANT);
+}
 
-  // y[n] = y[n-1] + α ( x[n] - y[n-1] ) (new value = old value + (fraction) × (error))
-  filteredSensors.acceleration.x = filterMeasurement(sensors.acceleration.x, filteredSensorsPrev.acceleration.x);
-  filteredSensors.acceleration.y = filterMeasurement(sensors.acceleration.y, filteredSensorsPrev.acceleration.y);
-  filteredSensors.acceleration.z = filterMeasurement(sensors.acceleration.z, filteredSensorsPrev.acceleration.z);
+void SkateSensorFusion::filterSensorOrientation() {
+  filteredSensors.orientation = sensors.orientation;
+}
+
+void SkateSensorFusion::filterSensorAngularVelocity() {
+  filteredSensors.angularVelocity = sensors.angularVelocity;
 }
 
 void SkateSensorFusion::computeSkateAcceleration() {
-  float q = sensors.orientation;
-  float qConjugate = computeOrientationConjugate(sensors.orientation);
+  float q = filteredSensors.orientation;
+  float qConjugate = computeOrientationConjugate(filteredSensors.orientation);
 
   // put acceleration in skate frame (a_skateframe = orientation_quaternion * acc_sensorframe * orientation_quaternion_conjugate)
-  float a = q * sensors.acceleration * qConjugate;
+  float a = q * filteredSensors.acceleration * qConjugate;
 
   // zero out values inside deadband
-  applyDeadband(&a, ACCELERATION_DEADBAND);
+  applyDeadband(&a.x, ACCERELATION_DEADBAND_MPS2);
+  applyDeadband(&a.y, ACCERELATION_DEADBAND_MPS2);
+  applyDeadband(&a.z, ACCERELATION_DEADBAND_MPS2);
   skate.acceleration = a;
 }
 
-void SkateSensorFusion::applyDeadband(sh2_Accelerometer_t &a, float deadband) {
-  if (a.x < deadband && a > -deadband) {
-    a.x = 0;
-  }
-  if (a.y < deadband && a > -deadband) {
-    a.y = 0;
-  }
-  if (a.z < deadband && a > -deadband) {
-    a.z = 0;
+void SkateSensorFusion::applyDeadband(float &val, float deadband) {
+  if (val < deadband && val > -deadband) {
+    val = 0;
   }
 }
 
 void SkateSensorFusion::computeSkateVelocity() {
   // discrete integration
   float vel = skate.acceleration.x * LOOP_DELAY_S;
-  applyDeadband(vel);
+  // apply deadband so anything below a certain velocity is considered stopped
+  // to avoid flip-flopping
+  applyDeadband(vel, VELOCITY_DEADBAND_MPS);
+  // store computed velocity
   skate.velocity = vel;
 }
 
 void SkateSensorFusion::computeSkateDirection() {
+  float vel = skate.velocity;
   if (vel == 0) {
     skate.direction = Stopped;
   } else if (vel > 0) {
@@ -103,6 +114,7 @@ void SkateSensorFusion::computeSkateDirection() {
   } else {
     skate.direction = Backward;
   }
+}
 
 void SkateSensorFusion::computeSkateSpeedMode() {
   acc = skate.acceleration.x;  
@@ -120,27 +132,32 @@ void SkateSensorFusion::computeSkateSpeedMode() {
   } else if (skate.direction == Backward) {
     if (acc = 0) {
       skate.speedMode = Constant;
+    } else if (acc > 0) {
+      skate.speedMode = Braking;
+    } else {
+      skate.speedMode = Accelerating;
+    }
+  } else if (skate.direction == Forward) {
+    if (acc = 0) {
+      skate.speedMode = Constant;
     } else if (acc < 0) {
       skate.speedMode = Braking;
     } else {
       skate.speedMode = Accelerating;
     }
   }
-
 }
 
 void SkateSensorFusion::computeSkateRpy() {
   float r, p, y;
   quaternionToRpy(
-    sensors.orientation.i, sensors.orientation.j, sensors.orientation.k, sensors.orientation.real,
+    filteredSensors.orientation.i, filteredSensors.orientation.j, filteredSensors.orientation.k, filteredSensors.orientation.real,
     r, p, y
   );
 
-  r = radToDeg(r);
-  p = radToDeg(p);
-  y = radToDeg(y);
-
-  applyDeadband(&r, &p, &y);
+  applyDeadband(&r, ANGLE_DEADBAND_RAD);
+  applyDeadband(&p, ANGLE_DEADBAND_RAD);
+  applyDeadband(&y, ANGLE_DEADBAND_RAD);
 
   skate.roll = r;
   skate.pitch = p;
@@ -155,21 +172,6 @@ void SkateSensorFusion::computeSkateLean() {
   } else {
     skate.lean = UPRIGHT;
   }
-}
-
-void SkateSensorFusion::computeSkatePressure() {
-  float dt = LOOP_DELAY_S;
-  // time constant for filter
-  float rc = PRESSURE_FILTER_TIME_CONSTANT;
-  // gain (how fast the value is allowed to change 0..1)
-  float alpha = dt / (rc + dt);
-
-  // update previous filtered values
-  filteredSensorsPrev.pressure = filteredSensors.pressure;
-
-  // exponentially weighted moving average (exponential smoothing)
-  // y[n] = y[n-1] + α ( x[n] - y[n-1] ) (new value = old value + fraction * (error)
-  filteredSensors.pressure = filterMeasurement(sensors.pressure, filteredSensorsPrev.pressure);
 }
 
 void SkateSensorFusion::computeContact() {

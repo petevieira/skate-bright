@@ -112,6 +112,24 @@ void fuseSensorData(bool gotNewData) {
   skateSensorFusion.update(skateImu, skatePressure);
 }
 
+void displaySensorState() {
+  // Orientation
+  Serial.print("roll: "); Serial.print(sensorFusion.filteredSensors.orientation.i);
+  Serial.print(", pitch: "); Serial.print(sensorFusion.filteredSensors.orientation.j);
+  Serial.print(", yaw: "); Serial.println(sensorFusion.filteredSensors.orientation.k);
+
+  // Acceleration
+  Serial.print("ax: "); Serial.print(sensorFusion.filteredSensors.acceleration.x);
+  Serial.print(", ay: "); Serial.print(sensorFusion.filteredSensors.acceleration.y);
+  Serial.print(", ay: "); Serial.println(sensorFusion.filteredSensors.acceleration.y);
+
+  // Pressure
+  Serial.print("pressure: "); Serial.println(sensorFusion.filteredSensors.pressure);
+}
+
+void displaySkateState() {
+}
+
 /**
  * Sends commands to signals, like LED strip.
  */

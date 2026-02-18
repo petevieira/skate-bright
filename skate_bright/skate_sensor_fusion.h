@@ -5,29 +5,31 @@
 #include "skate_imu.h"
 #include "skate_pressure.h"
 
-enum class Direction : uint8_t { Stopped, Forward, Backward };
-enum class Lean: uint8_t { Upright, Left, Right };
-enum class Contact: unit8_t { OnGround, Airborne, Unknown };
-enum class SpeedMode: uint8_t { Constant, Accelerating, Braking, Stopped, Unknown };
+enum class Direction { Stationary, Forward, Backward };
+enum class Lean { Upright, Left, Right };
+enum class Contact { OnGround, Airborne, Unknown };
+enum class SpeedMode { Constant, Accelerating, Braking, Stopped, Unknown };
 
 enum SkateFlag : uint32_t {
   FLAG_HEEL_BRAKE           = 1u << 0,
   FLAG_TOE_ONLY             = 1u << 1,
   FLAG_HEEL_ONLY            = 1u << 2,
-}
+};
 
 inline bool has(uint32_t flags, SkateFlag f) {
   return (flags & f) != 0;
-}
+};
 
 class SkateSensors {
+public:
   sh2_Accelerometer_t acceleration; // .x, .y, .z
-  sh2_RotationVector_t orientation; // .i, .j, .k, .real
+  sh2_RotationVectorWAcc_t orientation; // .i, .j, .k, .real
   sh2_Gyroscope_t angularVelocity; // .x, .y, .z
   float pressure;
-}
+};
 
 class SkateState {
+public:
   // continuous estimates (for thresholds/hysteresis/debug)
   float velocity;    // signed: + forward, - backward (m/s)
   float acceleration;   // signed along travel axis (m/s^2)
@@ -52,10 +54,12 @@ class SkateState {
 class SkateSensorFusion {
 public:
 
-  SkateState skate;
+  SkateSensors sensors;
   SkateSensors filteredSensorsPrev;
   SkateSensors filteredSensors;
-  SkateSensors sensors;
+  SkateState skate;
+
+  void initialize();
 
   void update(SkateImu imu, SkatePressure pressure);
 
@@ -65,11 +69,21 @@ private:
 
   void computeSkateDynamics();
 
-  void computeOrientationConjugate(sh2_RotationVector_t q);
+  void computeSkateBehavior();
 
-  void filterMeasurement(float measurement, float filteredValPrev);
+  float computeOrientationConjugate(sh2_RotationVectorWAcc_t q);
+
+  float filterMeasurement(float measurement, float filteredValPrev, float timeConstant);
+
+  void filterSensorData();
 
   void filterSensorAcceleration();
+
+  void filterSensorPressure();
+
+  void filterSensorOrientation();
+
+  void filterSensorAngularVelocity();
 
   void computeSkateAcceleration();
 

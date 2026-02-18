@@ -30,7 +30,7 @@ uint32_t nextTickUs;
 SkateImu skateImu = SkateImu();
 SkatePressure skatePressure = SkatePressure();
 // state
-SkateSensorFusion sensorFusion = SkateSensorFusion();
+SkateSensorFusion skateSensorFusion = SkateSensorFusion();
 // signals
 SkateLeds skateLeds = SkateLeds();
 
@@ -40,7 +40,7 @@ SkateLeds skateLeds = SkateLeds();
  */
 void setup() {
   initializeState();
-  initializeSerial();
+  // initializeSerial();
   initializeSensors();
   initializeSignals();
   nextTickUs = micros();
@@ -66,16 +66,14 @@ void loopTask() {
   bool gotNewData = readSensors();
   fuseSensorData(gotNewData);
   sendCommands();
+  printSensorsState();
 }
 
 /**
  * Initializes state.
  */
 void initializeState() {
-  state.direction = Stopped;
-  state.tilt = Upright;
-  state.contact = Unknown;
-  state.speedMode = Unknown;
+  skateSensorFusion.initialize();
 }
 
 /**
@@ -100,7 +98,7 @@ void initializeSignals() {
 bool readSensors() {
   bool newImuData = skateImu.process();
   bool newPressureData = skatePressure.process();
-  return newImuData || newPresureData;
+  return newImuData || newPressureData;
 }
 
 /**
@@ -112,22 +110,24 @@ void fuseSensorData(bool gotNewData) {
   skateSensorFusion.update(skateImu, skatePressure);
 }
 
-void displaySensorState() {
+void printSensorsState() {
+  Serial.println("Sensors:");
   // Orientation
-  Serial.print("roll: "); Serial.print(sensorFusion.filteredSensors.orientation.i);
-  Serial.print(", pitch: "); Serial.print(sensorFusion.filteredSensors.orientation.j);
-  Serial.print(", yaw: "); Serial.println(sensorFusion.filteredSensors.orientation.k);
+  Serial.print("roll: "); Serial.print(skateSensorFusion.filteredSensors.orientation.i);
+  Serial.print(", pitch: "); Serial.print(skateSensorFusion.filteredSensors.orientation.j);
+  Serial.print(", yaw: "); Serial.println(skateSensorFusion.filteredSensors.orientation.k);
 
   // Acceleration
-  Serial.print("ax: "); Serial.print(sensorFusion.filteredSensors.acceleration.x);
-  Serial.print(", ay: "); Serial.print(sensorFusion.filteredSensors.acceleration.y);
-  Serial.print(", ay: "); Serial.println(sensorFusion.filteredSensors.acceleration.y);
+  Serial.print("ax: "); Serial.print(skateSensorFusion.filteredSensors.acceleration.x);
+  Serial.print(", ay: "); Serial.print(skateSensorFusion.filteredSensors.acceleration.y);
+  Serial.print(", ay: "); Serial.println(skateSensorFusion.filteredSensors.acceleration.y);
 
   // Pressure
-  Serial.print("pressure: "); Serial.println(sensorFusion.filteredSensors.pressure);
+  Serial.print("pressure: "); Serial.println(skateSensorFusion.filteredSensors.pressure);
 }
 
-void displaySkateState() {
+void printSkateState() {
+
 }
 
 /**

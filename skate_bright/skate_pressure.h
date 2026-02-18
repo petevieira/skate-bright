@@ -7,7 +7,10 @@
 
 class SkatePressure {
 public:
-  void process();
+  void initialize();
+  bool process();
+
+  float value;
 };
 
 #endif

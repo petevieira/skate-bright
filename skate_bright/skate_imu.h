@@ -21,7 +21,7 @@ class SkateImu {
 public:
   // data storage
   sh2_Accelerometer_t acceleration; // .x, .y, .z (m/s^2)
-  sh2_RotationVector_t orientation; // .i, .j, .k, .real (rad)
+  sh2_RotationVectorWAcc_t orientation; // .i, .j, .k, .real (rad)
   sh2_Gyroscope_t angularVelocity; // .x, .y, .z (rad/s)
 
   void initialize();

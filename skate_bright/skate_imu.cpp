@@ -47,15 +47,15 @@ bool SkateImu::enableReports() {
   // Enable the reports we want
   if (!imu.enableReport(OrientationSensor, IMU_REPORT_RATE_US)) {
     DEBUG_PRINTLN("Failed to enable orientation report!");
-    return;
+    return false;
   }
   if (!imu.enableReport(AccelerationSensor, IMU_REPORT_RATE_US)) {
     DEBUG_PRINTLN("Failed to enable acceleration report!");
-    return;
+    return false;
   }
   if (!imu.enableReport(AngularVelocitySensor, IMU_REPORT_RATE_US)) {
     DEBUG_PRINTLN("Failed to enable angular velocity report!");
-    return;
+    return false;
   }
 
   DEBUG_PRINTLN("IMU reports (orientation|acceleration|angular-velocity) enabled");

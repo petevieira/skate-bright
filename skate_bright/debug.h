@@ -1,7 +1,6 @@
 #ifndef DEBUG_H
 #define DEBUG_H
 
-#include <cmath.h>
 #include <Arduino.h>
 
 #define DEBUG_ENABLED 1

@@ -8,6 +8,10 @@
 //   pinMode(9, INPUT_PULLUP);
 // }
 
-void SkatePressure::process() {
-  return;
+void SkatePressure::initialize() {
+
+}
+
+bool SkatePressure::process() {
+  return false;
 }

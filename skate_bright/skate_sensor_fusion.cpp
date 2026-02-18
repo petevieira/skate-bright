@@ -46,8 +46,23 @@ void SkateSensorFusion::computeSkateBehavior() {
   computeSkateSpeedMode();
 }
 
-float SkateSensorFusion::computeOrientationConjugate(sh2_RotationVectorWAcc_t q) {
-  return q.real - q.i - q.j - q.k;
+sh2_Accelerometer_t SkateSensorFusion::rotateByQuat(sh2_RotationVectorWAcc_t q, const sh2_Accelerometer_t &v) {
+  const float x = q.i;
+  const float y = q.j;
+  const float z = q.k;
+  const float w = q.real;
+
+  // Rotation matrix from quaternion
+  const float xx = x * x, yy = y * y, zz = z * z;
+  const float xy = x * y, xz = x * z, yz = y * z;
+  const float wx = w * x, wy = w * y, wz = w * z;
+
+  sh2_Accelerometer_t out;
+  out.x = (1.0f - 2.0f * (yy + zz)) * v.x + (2.0f * (xy - wz)) * v.y + (2.0f * (xz + wy)) * v.z;
+  out.y = (2.0f * (xy + wz)) * v.x + (1.0f - 2.0f * (xx + zz)) * v.y + (2.0f * (yz - wx)) * v.z;
+  out.z = (2.0f * (xz - wy)) * v.x + (2.0f * (yz + wx)) * v.y + (1.0f - 2.0f * (xx + yy)) * v.z;
+
+  return out;
 }
 
 float SkateSensorFusion::filterMeasurement(float measurement, float filteredValPrev, float timeConstant) {
@@ -82,17 +97,27 @@ void SkateSensorFusion::filterSensorAngularVelocity() {
 }
 
 void SkateSensorFusion::computeSkateAcceleration() {
-  sh2_RotationVectorWAcc_t q = filteredSensors.orientation;
-  float qConjugate = computeOrientationConjugate(filteredSensors.orientation);
+  const sh2_RotationVectorWAcc_t &q = filteredSensors.orientation;
 
   // put acceleration in skate frame (a_skateframe = orientation_quaternion * acc_sensorframe * orientation_quaternion_conjugate)
-  float a = q * filteredSensors.acceleration * qConjugate;
+  sh2_Accelerometer_t accSensor{ filteredSensors.acceleration.x,
+                                 filteredSensors.acceleration.y,
+                                 filteredSensors.acceleration.z };
+
+  sh2_Accelerometer_t accSkate = rotateByQuat(q, accSensor);
 
   // zero out values inside deadband
-  applyDeadband(&a.x, ACCERELATION_DEADBAND_MPS2);
-  applyDeadband(&a.y, ACCERELATION_DEADBAND_MPS2);
-  applyDeadband(&a.z, ACCERELATION_DEADBAND_MPS2);
-  skate.acceleration = a;
+  applyDeadband(accSkate.x, ACCERELATION_DEADBAND_MPS2);
+  applyDeadband(accSkate.y, ACCERELATION_DEADBAND_MPS2);
+  applyDeadband(accSkate.z, ACCERELATION_DEADBAND_MPS2);
+
+  skate.acceleration = accSkate.x;
+  // skate.acceleration = accSkate.y;
+  // skate.acceleration = accSkate.z;
+}
+
+void SkateSensorFusion::computeSkatePressure() {
+  
 }
 
 void SkateSensorFusion::applyDeadband(float &val, float deadband) {
@@ -103,7 +128,7 @@ void SkateSensorFusion::applyDeadband(float &val, float deadband) {
 
 void SkateSensorFusion::computeSkateVelocity() {
   // discrete integration
-  float vel = skate.acceleration.x * LOOP_DELAY_S;
+  float vel = skate.acceleration * LOOP_DELAY_S;
   // apply deadband so anything below a certain velocity is considered stopped
   // to avoid flip-flopping
   applyDeadband(vel, VELOCITY_DEADBAND_MPS);
@@ -114,16 +139,16 @@ void SkateSensorFusion::computeSkateVelocity() {
 void SkateSensorFusion::computeSkateDirection() {
   float vel = skate.velocity;
   if (vel == 0) {
-    skate.direction = Stationary;
+    skate.direction = Direction::Stationary;
   } else if (vel > 0) {
-    skate.direction = Forward;
+    skate.direction = Direction::Forward;
   } else {
-    skate.direction = Backward;
+    skate.direction = Direction::Backward;
   }
 }
 
 void SkateSensorFusion::computeSkateSpeedMode() {
-  acc = skate.acceleration.x;  
+  float acc = skate.acceleration;
 
   if (skate.direction == Direction::Stationary) {
     skate.speedMode = SpeedMode::Stopped;
@@ -161,9 +186,9 @@ void SkateSensorFusion::computeSkateRpy() {
     r, p, y
   );
 
-  applyDeadband(&r, ANGLE_DEADBAND_RAD);
-  applyDeadband(&p, ANGLE_DEADBAND_RAD);
-  applyDeadband(&y, ANGLE_DEADBAND_RAD);
+  applyDeadband(r, ANGLE_DEADBAND_RAD);
+  applyDeadband(p, ANGLE_DEADBAND_RAD);
+  applyDeadband(y, ANGLE_DEADBAND_RAD);
 
   skate.roll = r;
   skate.pitch = p;
@@ -173,7 +198,7 @@ void SkateSensorFusion::computeSkateRpy() {
 void SkateSensorFusion::computeSkateLean() {
   if (skate.roll < 0) {
     skate.lean = Lean::Right;
-  } else if skate.roll > 0) {
+  } else if (skate.roll > 0) {
     skate.lean = Lean::Left;
   } else {
     skate.lean = Lean::Upright;
@@ -181,9 +206,9 @@ void SkateSensorFusion::computeSkateLean() {
 }
 
 void SkateSensorFusion::computeContact() {
-  if (filteredSensors.pressure < MIN_PRESSURE) {
+  if (filteredSensors.pressure < MIN_PRESSURE_N) {
     skate.contact = Contact::Airborne;
-  } else if (filteredSensors.pressure >= MIN_PRESSURE) {
+  } else if (filteredSensors.pressure >= MIN_PRESSURE_N) {
     skate.contact = Contact::OnGround;
   } else {
     skate.contact = Contact::Unknown;
@@ -192,15 +217,15 @@ void SkateSensorFusion::computeContact() {
 
 void SkateSensorFusion::quaternionToRpy(
   float qx, float qy, float qz, float qw,
-  float *roll, float *pitch, float *yaw
+  float &roll, float &pitch, float &yaw
 ) {
   float r = atan2(2 * (qw * qx + qy * qz), 1 - 2 * (qx*qx + qy*qy));
   float p = -PI * 0.5 + 2 * atan2(sqrt(1 + 2 * (qw * qy - qx * qz)), sqrt(1 - 2 * qw * qy - qx * qz));
   float y = atan2(2 * (qw * qz + qx * qy), 1 - 2 * (qy*qy + qz*qz));
 
-  *roll = r;
-  *pitch = p;
-  *yaw = y;
+  roll = r;
+  pitch = p;
+  yaw = y;
 }
 
 

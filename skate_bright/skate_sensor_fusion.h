@@ -71,7 +71,7 @@ private:
 
   void computeSkateBehavior();
 
-  float computeOrientationConjugate(sh2_RotationVectorWAcc_t q);
+  sh2_Accelerometer_t rotateByQuat(sh2_RotationVectorWAcc_t q, const sh2_Accelerometer_t &v);
 
   float filterMeasurement(float measurement, float filteredValPrev, float timeConstant);
 
@@ -87,7 +87,7 @@ private:
 
   void computeSkateAcceleration();
 
-  void applyDeadband(sh2_Accelerometer_t &a, float deadband);
+  void applyDeadband(float &val, float deadband);
   
   void computeSkateVelocity();
 
@@ -105,7 +105,7 @@ private:
 
   void quaternionToRpy(
     float qx, float qy, float qz, float qw,
-    float *roll, float *pitch, float *yaw
+    float &roll, float &pitch, float &yaw
   );
 
   inline float radToDeg(float rad) { return rad * 180 / M_PI; }

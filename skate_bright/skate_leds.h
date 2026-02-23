@@ -20,6 +20,8 @@ public:
   bool ledsState = false;
   uint32_t magenta = strip.Color(255, 0, 255);
 
+  ~SkateLeds();
+
   void initialize();
 
   void processLeds();

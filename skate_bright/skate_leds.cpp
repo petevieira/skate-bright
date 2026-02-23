@@ -1,13 +1,21 @@
 /**
  */
 
+#include "debug.h"
 #include "skate_leds.h"
 
+SkateLeds::~SkateLeds() {
+  turnOffLeds();
+  strip.show();
+}
+
 void SkateLeds::initialize() {
+  DEBUG_PRINTLN("[SkateLeds::initialize]");
   // prepare data pin for NeoPixel strip
   strip.begin();
 
   // initalize all pixels to 'off', since no colors set yet
+  turnOffLeds();
   strip.show();
 }
 
@@ -16,6 +24,7 @@ void SkateLeds::processLeds() {
 }
 
 void SkateLeds::toggleLeds() {
+  DEBUG_PRINTLN("[toggleLeds]");
   if (ledsState) {
     turnOffLeds();
   } else {

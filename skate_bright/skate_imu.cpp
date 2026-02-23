@@ -6,61 +6,26 @@
 #include "debug.h"
 #include "skate_params.h"
 #include "skate_imu.h"
+#include <Wire.h>
 
 void SkateImu::initialize() {
-  DEBUG_PRINTLN("Initting IMU");
 
-#if __PROTOCOL__ == PROTOCOL_I2C
+  DEBUG_PRINTLN("Initting IMU with I^2C");
   initI2c();
-#elif __PROTOCOL__ == PROTOCOL_UART
-  initUart();
-#endif
-
-  DEBUG_PRINTLN("BNO08x Found!");
-
-  enableReports();
 }
 
 void SkateImu::initI2c() {
-  if (!imu.begin_I2C()) {
+  if (!BMI160.begin(BMI160GenClass::I2C_MODE, IMU_I2C_ADDR, -1)) {
     DEBUG_PRINTLN("IMU Failed I2C init");
     while (1) {
       delay(10);
     }
   }
-  DEBUG_PRINTLN("IMU I2C initted");
+  DEBUG_PRINTLN("IMU initted");
 }
 
-void SkateImu::initUart() {
-  DEBUG_PRINTLN("Beginning UART");
-
-  if (!imu.begin_UART(&Serial1)) {
-    DEBUG_PRINTLN("IMU Failed UART init");
-    while (1) {
-      delay(10);
-    }
-  }
-  DEBUG_PRINTLN("IMU UART initted");
-}
-
-bool SkateImu::enableReports() {
-  // Enable the reports we want
-  if (!imu.enableReport(OrientationSensor, IMU_REPORT_RATE_US)) {
-    DEBUG_PRINTLN("Failed to enable orientation report!");
-    return false;
-  }
-  if (!imu.enableReport(AccelerationSensor, IMU_REPORT_RATE_US)) {
-    DEBUG_PRINTLN("Failed to enable acceleration report!");
-    return false;
-  }
-  if (!imu.enableReport(AngularVelocitySensor, IMU_REPORT_RATE_US)) {
-    DEBUG_PRINTLN("Failed to enable angular velocity report!");
-    return false;
-  }
-
-  DEBUG_PRINTLN("IMU reports (orientation|acceleration|angular-velocity) enabled");
-
-  return true;
+void SkateImu::setAccelerometerRange() {
+  write8(0x41, IMU_ACCELEROMETER_RANGE);
 }
 
 void SkateImu::setZero() {
@@ -68,23 +33,47 @@ void SkateImu::setZero() {
 }
 
 bool SkateImu::readImu() {
-  if (imu.getSensorEvent(&sensorValue)) {
-    // Only print if the event is the type we enabled
-    if (sensorValue.sensorId == OrientationSensor) {
-      orientation = sensorValue.un.arvrStabilizedRV;
-    } else if (sensorValue.sensorId == AccelerationSensor) {
-      acceleration = sensorValue.un.accelerometer;
-    } else if (sensorValue.sensorId == AngularVelocitySensor) {
-      angularVelocity = sensorValue.un.gyroscope;
-    }
+  BMI160.readGyro(gyroCounts.x, gyroCounts.y, gyroCounts.z);
+  BMI160.readAccelerometer(accCounts.x, accCounts.y, accCounts.z);
 
-    return true;
-  }
+  return true;
+}
 
-  return false;
+float SkateImu::convertAccCountsToMps2() {
+  accMps2.x = (float)accCounts.x * GRAVITY_MPS2 / IMU_ACC_SENSITIVITY_COUNTS_PER_G;
+  accMps2.y = (float)accCounts.y * GRAVITY_MPS2 / IMU_ACC_SENSITIVITY_COUNTS_PER_G;
+  accMps2.z = (float)accCounts.z * GRAVITY_MPS2 / IMU_ACC_SENSITIVITY_COUNTS_PER_G;
+}
+
+float SkateImu::convertGyroCountsToDegps() {
+  gyroDegps.x = (float)gyroCounts.x * GRAVITY_MPS2 / IMU_GYRO_SENSITIVITY_COUNTS_PER_DEG_PER_S;
+  gyroDegps.y = (float)gyroCounts.y * GRAVITY_MPS2 / IMU_GYRO_SENSITIVITY_COUNTS_PER_DEG_PER_S;
+  gyroDegps.z = (float)gyroCounts.z * GRAVITY_MPS2 / IMU_GYRO_SENSITIVITY_COUNTS_PER_DEG_PER_S;
+}
+
+void SkateImu::convertAccToRpyRad() {
+  rpyRad.x = atan2(accMps2.y, accMps2.z);
+  rpyRad.y = atan2(-accMps2.x, sqrt(accMps2.y * accMps2.y + accMps2.z * accMps2.z));
 }
 
 bool SkateImu::process() {
-  bool newDataReceived = readImu();
-  return newDataReceived;
+  readImu();
+  convertAccCountsToMps2();
+  convertGyroCountsToDegps();
+  convertAccToRpyRad();
+}
+
+uint8_t SkateImu::read8(uint8_t reg) {
+  Wire.beginTransmission(IMU_I2C_ADDR);
+  Wire.write(reg);
+  Wire.endTransmission(false);
+  Wire.requestFrom(IMU_I2C_ADDR, (uint8_t)1);
+  return Wire.read();
+}
+
+void SkateImu::write8(uint8_t reg, uint8_t val) {
+  Wire.beginTransmission(IMU_I2C_ADDR);
+  Wire.write(reg);
+  Wire.write(val);
+  Wire.endTransmission(true);
 }

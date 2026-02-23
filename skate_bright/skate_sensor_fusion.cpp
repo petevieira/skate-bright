@@ -17,9 +17,9 @@ void SkateSensorFusion::update(SkateImu imu, SkatePressure pressure) {
 }
 
 void SkateSensorFusion::storeNewSensorData(SkateImu imu, SkatePressure pressure) {
-  sensors.acceleration = imu.acceleration;
-  sensors.orientation = imu.orientation;
-  sensors.angularVelocity = imu.angularVelocity;
+  sensors.accMps2 = imu.accMps2;
+  sensors.rpyRad = imu.rpyRad;
+  sensors.velDegps = imu.gyroDegps;
   sensors.pressure = pressure.value;
 }
 
@@ -78,9 +78,9 @@ float SkateSensorFusion::filterMeasurement(float measurement, float filteredValP
 }
 
 void SkateSensorFusion::filterSensorAcceleration() {
-  filteredSensors.acceleration.x = filterMeasurement(sensors.acceleration.x, filteredSensorsPrev.acceleration.x, ACCELERATION_FILTER_TIME_CONSTANT);
-  filteredSensors.acceleration.y = filterMeasurement(sensors.acceleration.y, filteredSensorsPrev.acceleration.y, ACCELERATION_FILTER_TIME_CONSTANT);
-  filteredSensors.acceleration.z = filterMeasurement(sensors.acceleration.z, filteredSensorsPrev.acceleration.z, ACCELERATION_FILTER_TIME_CONSTANT);
+  filteredSensors.accMps2.x = filterMeasurement(sensors.accMps2.x, filteredSensorsPrev.accMps2.x, ACCELERATION_FILTER_TIME_CONSTANT);
+  filteredSensors.accMps2.y = filterMeasurement(sensors.accMps2.y, filteredSensorsPrev.accMps2.y, ACCELERATION_FILTER_TIME_CONSTANT);
+  filteredSensors.accMps2.z = filterMeasurement(sensors.accMps2.z, filteredSensorsPrev.accMps2.z, ACCELERATION_FILTER_TIME_CONSTANT);
 }
 
 void SkateSensorFusion::filterSensorPressure() {
@@ -89,31 +89,32 @@ void SkateSensorFusion::filterSensorPressure() {
 }
 
 void SkateSensorFusion::filterSensorOrientation() {
-  filteredSensors.orientation = sensors.orientation;
+  filteredSensors.rpyRad = sensors.rpyRad;
 }
 
 void SkateSensorFusion::filterSensorAngularVelocity() {
-  filteredSensors.angularVelocity = sensors.angularVelocity;
+  filteredSensors.velDegps = sensors.velDegps;
 }
 
 void SkateSensorFusion::computeSkateAcceleration() {
-  const sh2_RotationVectorWAcc_t &q = filteredSensors.orientation;
+  // const sh2_RotationVectorWAcc_t &q = filteredSensors.orientation;
 
   // put acceleration in skate frame (a_skateframe = orientation_quaternion * acc_sensorframe * orientation_quaternion_conjugate)
-  sh2_Accelerometer_t accSensor{ filteredSensors.acceleration.x,
-                                 filteredSensors.acceleration.y,
-                                 filteredSensors.acceleration.z };
+  // sh2_Accelerometer_t accSensor{ filteredSensors.accMps2.x,
+  //                                filteredSensors.accMps2.y,
+  //                                filteredSensors.accMps2.z };
 
-  sh2_Accelerometer_t accSkate = rotateByQuat(q, accSensor);
+  // sh2_Accelerometer_t accSkate = rotateByQuat(q, accSensor);
+  Vec3f accSkateMps2 = filteredSensors.accMps2;
 
   // zero out values inside deadband
-  applyDeadband(accSkate.x, ACCERELATION_DEADBAND_MPS2);
-  applyDeadband(accSkate.y, ACCERELATION_DEADBAND_MPS2);
-  applyDeadband(accSkate.z, ACCERELATION_DEADBAND_MPS2);
+  applyDeadband(accSkateMps2.x, ACCERELATION_DEADBAND_MPS2);
+  applyDeadband(accSkateMps2.y, ACCERELATION_DEADBAND_MPS2);
+  applyDeadband(accSkateMps2.z, ACCERELATION_DEADBAND_MPS2);
 
-  skate.acceleration = accSkate.x;
-  // skate.acceleration = accSkate.y;
-  // skate.acceleration = accSkate.z;
+  skate.accMps2.x = accSkateMps2.x;
+  skate.accMps2.y = accSkateMps2.y;
+  skate.accMps2.z = accSkateMps2.z;
 }
 
 void SkateSensorFusion::computeSkatePressure() {
@@ -128,19 +129,25 @@ void SkateSensorFusion::applyDeadband(float &val, float deadband) {
 
 void SkateSensorFusion::computeSkateVelocity() {
   // discrete integration
-  float vel = skate.acceleration * LOOP_DELAY_S;
+  float velX = skate.accMps2.x * LOOP_DELAY_S;
+  float velY = skate.accMps2.y * LOOP_DELAY_S;
+  float velZ = skate.accMps2.z * LOOP_DELAY_S;
+
   // apply deadband so anything below a certain velocity is considered stopped
   // to avoid flip-flopping
-  applyDeadband(vel, VELOCITY_DEADBAND_MPS);
+  applyDeadband(velX, VELOCITY_DEADBAND_MPS);
+  applyDeadband(velY, VELOCITY_DEADBAND_MPS);
+  applyDeadband(velZ, VELOCITY_DEADBAND_MPS);
+
   // store computed velocity
-  skate.velocity = vel;
+  skate.velMps2 = Vec3f(velX, velY, velZ);
 }
 
 void SkateSensorFusion::computeSkateDirection() {
-  float vel = skate.velocity;
-  if (vel == 0) {
+  float velX = skate.velMps2.x;
+  if (velX == 0) {
     skate.direction = Direction::Stationary;
-  } else if (vel > 0) {
+  } else if (velX > 0) {
     skate.direction = Direction::Forward;
   } else {
     skate.direction = Direction::Backward;
@@ -148,30 +155,30 @@ void SkateSensorFusion::computeSkateDirection() {
 }
 
 void SkateSensorFusion::computeSkateSpeedMode() {
-  float acc = skate.acceleration;
+  float accX = skate.accMps2.x;
 
   if (skate.direction == Direction::Stationary) {
     skate.speedMode = SpeedMode::Stopped;
   } else if (skate.direction == Direction::Forward) {
-    if (acc = 0) {
+    if (accX = 0) {
       skate.speedMode = SpeedMode::Constant;
-    } else if (acc < 0) {
+    } else if (accX < 0) {
       skate.speedMode = SpeedMode::Braking;
     } else {
       skate.speedMode = SpeedMode::Accelerating;
     }
   } else if (skate.direction == Direction::Backward) {
-    if (acc = 0) {
+    if (accX = 0) {
       skate.speedMode = SpeedMode::Constant;
-    } else if (acc > 0) {
+    } else if (accX > 0) {
       skate.speedMode = SpeedMode::Braking;
     } else {
       skate.speedMode = SpeedMode::Accelerating;
     }
   } else if (skate.direction == Direction::Forward) {
-    if (acc = 0) {
+    if (accX = 0) {
       skate.speedMode = SpeedMode::Constant;
-    } else if (acc < 0) {
+    } else if (accX < 0) {
       skate.speedMode = SpeedMode::Braking;
     } else {
       skate.speedMode = SpeedMode::Accelerating;
@@ -181,24 +188,23 @@ void SkateSensorFusion::computeSkateSpeedMode() {
 
 void SkateSensorFusion::computeSkateRpy() {
   float r, p, y;
-  quaternionToRpy(
-    filteredSensors.orientation.i, filteredSensors.orientation.j, filteredSensors.orientation.k, filteredSensors.orientation.real,
-    r, p, y
-  );
+  // quaternionToRpy(
+  //   filteredSensors.orientation.i, filteredSensors.orientation.j, filteredSensors.orientation.k, filteredSensors.orientation.real,
+  //   r, p, y
+  // );
 
   applyDeadband(r, ANGLE_DEADBAND_RAD);
   applyDeadband(p, ANGLE_DEADBAND_RAD);
   applyDeadband(y, ANGLE_DEADBAND_RAD);
 
-  skate.roll = r;
-  skate.pitch = p;
-  skate.yaw = y;
+  skate.rpyRad.x = r;
+  skate.rpyRad.y = p;
 }
 
 void SkateSensorFusion::computeSkateLean() {
-  if (skate.roll < 0) {
+  if (skate.rpyRad.x < 0) {
     skate.lean = Lean::Right;
-  } else if (skate.roll > 0) {
+  } else if (skate.rpyRad.x > 0) {
     skate.lean = Lean::Left;
   } else {
     skate.lean = Lean::Upright;

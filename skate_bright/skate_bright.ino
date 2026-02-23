@@ -39,10 +39,11 @@ SkateLeds skateLeds = SkateLeds();
  * Initializes state, Serial port, sensors, and signals.
  */
 void setup() {
+  initializeSerial();
+  DEBUG_PRINTLN("[setup]");
   initializeState();
-  // initializeSerial();
+  // initializeSignals();
   initializeSensors();
-  initializeSignals();
   nextTickUs = micros();
 }
 
@@ -51,8 +52,10 @@ void setup() {
  * processed based on predefined loop rate.
  */
 void loop() {
+  DEBUG_PRINTLN("[loop]");
   uint32_t now = micros();
   if ((int32_t)(now - nextTickUs) >= 0) {
+    // DEBUG_PRINT("now: "); DEBUG_PRINTLN(now);
     nextTickUs += LOOP_DELAY_US;
     loopTask();
   }
@@ -65,7 +68,7 @@ void loop() {
 void loopTask() {
   bool gotNewData = readSensors();
   fuseSensorData(gotNewData);
-  sendCommands();
+  // sendCommands();
   printSensorsState();
 }
 
@@ -74,6 +77,11 @@ void loopTask() {
  */
 void initializeState() {
   skateSensorFusion.initialize();
+}
+
+void initializeSerial() {
+  Serial.begin(115200);
+  while (!Serial) delay(10);
 }
 
 /**
@@ -113,14 +121,14 @@ void fuseSensorData(bool gotNewData) {
 void printSensorsState() {
   Serial.println("Sensors:");
   // Orientation
-  Serial.print("roll: "); Serial.print(skateSensorFusion.filteredSensors.orientation.i);
-  Serial.print(", pitch: "); Serial.print(skateSensorFusion.filteredSensors.orientation.j);
-  Serial.print(", yaw: "); Serial.println(skateSensorFusion.filteredSensors.orientation.k);
+  Serial.print("roll: "); Serial.print(skateSensorFusion.filteredSensors.rpyRad.x);
+  Serial.print(", pitch: "); Serial.print(skateSensorFusion.filteredSensors.rpyRad.y);
+  Serial.print(", yaw: "); Serial.println(skateSensorFusion.filteredSensors.rpyRad.z);
 
   // Acceleration
-  Serial.print("ax: "); Serial.print(skateSensorFusion.filteredSensors.acceleration.x);
-  Serial.print(", ay: "); Serial.print(skateSensorFusion.filteredSensors.acceleration.y);
-  Serial.print(", ay: "); Serial.println(skateSensorFusion.filteredSensors.acceleration.y);
+  Serial.print("ax: "); Serial.print(skateSensorFusion.filteredSensors.accMps2.x);
+  Serial.print(", ay: "); Serial.print(skateSensorFusion.filteredSensors.accMps2.y);
+  Serial.print(", ay: "); Serial.println(skateSensorFusion.filteredSensors.accMps2.y);
 
   // Pressure
   Serial.print("pressure: "); Serial.println(skateSensorFusion.filteredSensors.pressure);
@@ -134,6 +142,6 @@ void printSkateState() {
  * Sends commands to signals, like LED strip.
  */
 void sendCommands() {
-
+  skateLeds.processLeds();
 }
 

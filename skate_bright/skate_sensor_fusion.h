@@ -22,20 +22,18 @@ inline bool has(uint32_t flags, SkateFlag f) {
 
 class SkateSensors {
 public:
-  sh2_Accelerometer_t acceleration; // .x, .y, .z
-  sh2_RotationVectorWAcc_t orientation; // .i, .j, .k, .real
-  sh2_Gyroscope_t angularVelocity; // .x, .y, .z
+  Vec3f accMps2;
+  Vec3f rpyRad;
+  Vec3f velDegps;
   float pressure;
 };
 
 class SkateState {
 public:
   // continuous estimates (for thresholds/hysteresis/debug)
-  float velocity;    // signed: + forward, - backward (m/s)
-  float acceleration;   // signed along travel axis (m/s^2)
-  float roll;   // left/right
-  float pitch;  // toe/heel
-  float yaw;
+  Vec3f velMps2;    // signed: + forward, - backward (m/s)
+  Vec3f accMps2;   // signed along travel axis (m/s^2)
+  Vec3f rpyRad;   // left/right
   float contactProb; // 0..1
 
   // discrete dimensions

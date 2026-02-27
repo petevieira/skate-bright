@@ -10,6 +10,44 @@ enum class Lean { Upright, Left, Right };
 enum class Contact { OnGround, Airborne, Unknown };
 enum class SpeedMode { Constant, Accelerating, Braking, Stopped, Unknown };
 
+inline const char* toString(Direction d) {
+  switch (d) {
+    case Direction::Stationary: return "Stationary";
+    case Direction::Forward:    return "Forward";
+    case Direction::Backward:   return "Backward";
+    default:                    return "Unknown";
+  }
+}
+
+inline const char* toString(Lean l) {
+  switch (l) {
+    case Lean::Upright: return "Upright";
+    case Lean::Left:    return "Left";
+    case Lean::Right:   return "Right";
+    default:            return "Unknown";
+  }
+}
+
+inline const char* toString(Contact c) {
+  switch (c) {
+    case Contact::OnGround: return "OnGround";
+    case Contact::Airborne: return "Airborne";
+    case Contact::Unknown:  return "Unknown";
+    default:                return "Unknown";
+  }
+}
+
+inline const char* toString(SpeedMode s) {
+  switch (s) {
+    case SpeedMode::Constant:     return "Constant";
+    case SpeedMode::Accelerating: return "Accelerating";
+    case SpeedMode::Braking:      return "Braking";
+    case SpeedMode::Stopped:      return "Stopped";
+    case SpeedMode::Unknown:      return "Unknown";
+    default:                      return "Unknown";
+  }
+}
+
 enum SkateFlag : uint32_t {
   FLAG_HEEL_BRAKE           = 1u << 0,
   FLAG_TOE_ONLY             = 1u << 1,
@@ -31,7 +69,7 @@ public:
 class SkateState {
 public:
   // continuous estimates (for thresholds/hysteresis/debug)
-  Vec3f velMps2;    // signed: + forward, - backward (m/s)
+  Vec3f velMps;    // signed: + forward, - backward (m/s)
   Vec3f accMps2;   // signed along travel axis (m/s^2)
   Vec3f rpyRad;   // left/right
   float contactProb; // 0..1
@@ -86,7 +124,7 @@ private:
   void computeSkateAcceleration();
 
   void applyDeadband(float &val, float deadband);
-  
+
   void computeSkateVelocity();
 
   void computeSkateDirection();

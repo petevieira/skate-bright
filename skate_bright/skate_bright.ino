@@ -52,7 +52,6 @@ void setup() {
  * processed based on predefined loop rate.
  */
 void loop() {
-  DEBUG_PRINTLN("[loop]");
   uint32_t now = micros();
   if ((int32_t)(now - nextTickUs) >= 0) {
     // DEBUG_PRINT("now: "); DEBUG_PRINTLN(now);
@@ -70,6 +69,7 @@ void loopTask() {
   fuseSensorData(gotNewData);
   // sendCommands();
   printSensorsState();
+  printSkateState();
 }
 
 /**
@@ -128,14 +128,19 @@ void printSensorsState() {
   // Acceleration
   Serial.print("ax: "); Serial.print(skateSensorFusion.filteredSensors.accMps2.x);
   Serial.print(", ay: "); Serial.print(skateSensorFusion.filteredSensors.accMps2.y);
-  Serial.print(", ay: "); Serial.println(skateSensorFusion.filteredSensors.accMps2.y);
+  Serial.print(", az: "); Serial.println(skateSensorFusion.filteredSensors.accMps2.z);
 
   // Pressure
   Serial.print("pressure: "); Serial.println(skateSensorFusion.filteredSensors.pressure);
 }
 
 void printSkateState() {
-
+  Serial.println("Skate:");
+  Serial.print("Vel: "); Serial.println(skateSensorFusion.skate.velMps.x);
+  Serial.print("Direction: "); Serial.println(toString(skateSensorFusion.skate.direction));
+  Serial.print("Lean: "); Serial.println(toString(skateSensorFusion.skate.lean));
+  Serial.print("Contact: "); Serial.println(toString(skateSensorFusion.skate.contact));
+  Serial.print("SpeedMode: "); Serial.println(toString(skateSensorFusion.skate.speedMode));
 }
 
 /**

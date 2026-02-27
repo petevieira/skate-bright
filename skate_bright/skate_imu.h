@@ -10,13 +10,15 @@
  */
 class SkateImu {
 public:
-  // data storage
+  // raw sensor data
   Vec3i gyroCounts;
-  Vec3f gyroDegps;
-
   Vec3i accCounts;
+
+  // converted sensor data
+  Vec3f gyroDegps;
   Vec3f accMps2;
 
+  // computed data
   Vec3f rpyRad;
 
   void initialize();

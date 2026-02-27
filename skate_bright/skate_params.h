@@ -30,9 +30,9 @@
 #define MIN_PRESSURE_N 5
 
 constexpr uint32_t LOOP_RATE_HZ  = 10;
-constexpr uint32_t LOOP_DELAY_S  = 1 / LOOP_RATE_HZ;
-constexpr uint32_t LOOP_DELAY_MS = 1000 / LOOP_RATE_HZ;
-constexpr uint32_t LOOP_DELAY_US = 1000000 / LOOP_RATE_HZ;
+constexpr float    LOOP_DELAY_S  = 1.0f / LOOP_RATE_HZ;
+constexpr float    LOOP_DELAY_MS = 1000.0f / LOOP_RATE_HZ;
+constexpr float    LOOP_DELAY_US = 1000000.0f / LOOP_RATE_HZ;
 
 class Vec3i {
 public:

@@ -17,9 +17,9 @@ void SkateSensorFusion::update(SkateImu imu, SkatePressure pressure) {
 }
 
 void SkateSensorFusion::storeNewSensorData(SkateImu imu, SkatePressure pressure) {
+  sensors.velDegps = imu.gyroDegps;
   sensors.accMps2 = imu.accMps2;
   sensors.rpyRad = imu.rpyRad;
-  sensors.velDegps = imu.gyroDegps;
   sensors.pressure = pressure.value;
 }
 
@@ -140,11 +140,11 @@ void SkateSensorFusion::computeSkateVelocity() {
   applyDeadband(velZ, VELOCITY_DEADBAND_MPS);
 
   // store computed velocity
-  skate.velMps2 = Vec3f(velX, velY, velZ);
+  skate.velMps = Vec3f(velX, velY, velZ);
 }
 
 void SkateSensorFusion::computeSkateDirection() {
-  float velX = skate.velMps2.x;
+  float velX = skate.velMps.x;
   if (velX == 0) {
     skate.direction = Direction::Stationary;
   } else if (velX > 0) {
@@ -233,6 +233,4 @@ void SkateSensorFusion::quaternionToRpy(
   pitch = p;
   yaw = y;
 }
-
-
 
